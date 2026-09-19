@@ -1,20 +1,19 @@
 import streamlit as st
+import os
 
-# --- DATABASE SEMENTARA (SANGAT RINGAN) ---
+# --- DATABASE SEMENTARA ---
 @st.cache_resource
 def get_room_database():
     return {}
 
 db_room = get_room_database()
 
-# --- FUNGSI PREVIEW VISUAL (SUPER CEPAT) ---
-# Hanya membesarkan ukuran teks bawaan HP tanpa memuat gambar apapun
+# --- FUNGSI PREVIEW VISUAL (TEKS CEPAT UNTUK KALKULATOR) ---
 def preview_keping(teks):
     return f"<div style='font-size: 38px; text-align: center; background-color: #f8f9fa; padding: 10px; border-radius: 10px; letter-spacing: 2px; color: #1f1f1f; border: 1px solid #ddd;'>{teks}</div>"
 
 class KalkulatorPemulaJ2:
     def __init__(self):
-        # Murni teks Unicode. Sangat ringan untuk dimuat memori HP.
         self.katalog_visual = {
             "🔀 Campur aduk (Ada seri, ada kembar, beda warna)": (0, 0, "CHICKEN HAND", "🀙🀚🀛 🀔🀔🀔 🀝🀞🀟 🀇🀈🀉 + 🀀🀀"),
             "🔢 Semuanya berupa susunan SERI BERURUTAN (Chow)": (2, 2, "ALL SEQUENCES", "🀙🀚🀛 🀔🀕🀖 🀝🀞🀟 🀇🀈🀉 + 🀀🀀"),
@@ -49,30 +48,26 @@ class KalkulatorPemulaJ2:
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Kasir Mahjong (Fast)", layout="centered", page_icon="🀄")
 
-# --- SIDEBAR: KAMUS (HANYA 1 BLOK HTML SUPER RINGAN) ---
-# Tulisan Naga secara eksplisit diwarnai agar pemula langsung paham
+# --- SIDEBAR: KAMUS MENGGUNAKAN GAMBAR LOKAL ---
 with st.sidebar:
-    st.header("📖 Kamus Kilat")
-    st.markdown("""
-    <div style="background:#f8f9fa; padding:15px; border-radius:10px;">
-        <b>🔢 Angka Kanji (Karakter)</b><br>
-        <span style="font-size:22px;">一=1 | 二=2 | 三=3</span><br>
-        <span style="font-size:22px;">四=4 | 伍=5 | 六=6</span><br>
-        <span style="font-size:22px;">七=7 | 八=8 | 九=9</span>
-        <hr style="margin: 10px 0;">
-        <b>🧭 Arah Angin</b><br>
-        <span style="font-size:22px;">東=Timur | 南=Selatan</span><br>
-        <span style="font-size:22px;">西=Barat | 北=Utara</span>
-        <hr style="margin: 10px 0;">
-        <b>🐉 Naga (Dragon)</b><br>
-        <span style="font-size:28px; font-weight:bold; color:#d32f2f;">中</span> = Merah<br>
-        <span style="font-size:28px; font-weight:bold; color:#388e3c;">發</span> = Hijau<br>
-        <span style="font-size:28px; font-weight:bold; color:#1976d2;">白</span> = Putih
-    </div>
-    """, unsafe_allow_html=True)
+    st.header("📖 Kamus Contekan")
+    st.write("Intip panduan keping di bawah ini:")
+    
+    # Cek apakah file gambar tersedia untuk menghindari error
+    if os.path.exists("Tiles.jpg"):
+        st.image("Tiles.jpg", caption="Keping Angka (Suit Tiles)", use_container_width=True)
+    else:
+        st.warning("⚠️ Gambar 'Tiles.jpg' tidak ditemukan di folder.")
+        
+    st.divider()
+    
+    if os.path.exists("honors.jpg"):
+        st.image("honors.jpg", caption="Keping Tulisan (Honors)", use_container_width=True)
+    else:
+        st.warning("⚠️ Gambar 'honors.jpg' tidak ditemukan di folder.")
 
 
-# --- SISTEM LOGIN ROOM ---
+# --- SISTEM LOGIN ROOM & BUKU KAS ---
 st.title("🀄 Kasir Mahjong J2")
 
 room_input = st.text_input("🔑 Masukkan Kode Meja (Contoh: VIP1):", "").upper()
@@ -83,7 +78,6 @@ if room_input:
     
     st.success(f"Masuk ke Room: **{room_input}**")
     
-    # Menampilkan Buku Saldo
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Timur", db_room[room_input]["Timur"])
     c2.metric("Selatan", db_room[room_input]["Selatan"])
