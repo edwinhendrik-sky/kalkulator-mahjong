@@ -14,18 +14,13 @@ if "room" not in st.session_state: st.session_state.room = None
 if "kursi" not in st.session_state: st.session_state.kursi = None
 if "nama" not in st.session_state: st.session_state.nama = None
 
-
 # --- FUNGSI BACA GAMBAR (LOKAL + CADANGAN INTERNET) ---
 def get_local_tile(nama_file, width=35):
     filepath = f"assets/{nama_file}.svg"
-    
-    # Skenario 1: Jika gambar ada di komputer, muat secepat kilat (Offline)
     if os.path.exists(filepath):
         with open(filepath, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
             return f"<img src='data:image/svg+xml;base64,{encoded_string}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
-    
-    # Skenario 2: Jika gambar tidak ada di komputer, ambil dari internet sebagai cadangan (Anti-Gagal)
     else:
         url = f"https://raw.githubusercontent.com/FluffyStuff/mahjong-tiles/master/svg/{nama_file}.svg"
         return f"<img src='{url}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
@@ -80,17 +75,38 @@ with st.sidebar:
     if os.path.exists("Tiles_2.jpg"): st.image("Tiles_2.jpg", use_container_width=True)
     if os.path.exists("honors_2.jpg"): st.image("honors_2.jpg", use_container_width=True)
 
-# --- FASE 1: HALAMAN LOBI (LOGIN) ---
+# --- FASE 1: HALAMAN LOBI (LOGIN DENGAN RESET & TAKEOVER) ---
 if not st.session_state.room:
     st.title("🀄 Lobi Mahjong J2")
-    st.markdown("Silakan daftar untuk menempati kursi di meja.")
+    st.markdown("Daftar untuk menempati kursi, atau reset data meja jika ada pemain yang keluar tanpa *logout*.")
     
     with st.form("form_login"):
         input_room = st.text_input("🔑 Kode Meja (Contoh: VIP1):").upper()
         input_nama = st.text_input("👤 Nama Panggilan Anda:")
         input_kursi = st.selectbox("🪑 Pilih Kursi:", ["Timur", "Selatan", "Barat", "Utara"])
+        paksa_masuk = st.checkbox("⚠️ Paksa ambil alih kursi (Jika data sebelumnya nyangkut)")
         
-        if st.form_submit_button("Masuk ke Meja", type="primary"):
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            submit_btn = st.form_submit_button("Masuk ke Meja", type="primary")
+        with col_btn2:
+            reset_btn = st.form_submit_button("🧹 Reset Saldo Meja")
+
+        # LOGIKA TOMBOL RESET
+        if reset_btn:
+            if input_room:
+                db_room[input_room] = {
+                    "Timur": {"nama": None, "saldo": 1000},
+                    "Selatan": {"nama": None, "saldo": 1000},
+                    "Barat": {"nama": None, "saldo": 1000},
+                    "Utara": {"nama": None, "saldo": 1000}
+                }
+                st.success(f"✅ Data meja '{input_room}' berhasil dikosongkan dan di-reset ke 1.000 cip!")
+            else:
+                st.error("Isi Kode Meja terlebih dahulu untuk mereset meja tersebut!")
+
+        # LOGIKA TOMBOL MASUK
+        if submit_btn:
             if not input_room or not input_nama:
                 st.error("Kode Meja dan Nama wajib diisi!")
             else:
@@ -103,8 +119,10 @@ if not st.session_state.room:
                     }
                 
                 kursi_saat_ini = db_room[input_room][input_kursi]["nama"]
-                if kursi_saat_ini is not None and kursi_saat_ini != input_nama:
-                    st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}!")
+                
+                # Tolak jika kursi terisi, KECUALI pemain menekan tombol 'Paksa ambil alih' atau namanya sama persis
+                if kursi_saat_ini is not None and kursi_saat_ini != input_nama and not paksa_masuk:
+                    st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}! Centang 'Paksa ambil alih kursi' di atas jika Anda ingin menimpanya.")
                 else:
                     db_room[input_room][input_kursi]["nama"] = input_nama
                     st.session_state.room = input_room
@@ -126,11 +144,9 @@ else:
         st.session_state.kursi = None
         st.rerun()
 
-    # --- BANNER STATUS ROOM ---
     pemain_terisi = [k for k, v in data_room.items() if v["nama"] is not None]
     
     st.info(f"👥 **Room: {room} | Terisi: {len(pemain_terisi)}/4 Kursi**")
-    
     teks_status = []
     for k in ["Timur", "Selatan", "Barat", "Utara"]:
         nama_pemain = data_room[k]["nama"]
@@ -138,13 +154,10 @@ else:
         else: teks_status.append(f"*{k}*: (Kosong)")
     
     st.markdown(" | ".join(teks_status))
-    
-    if len(pemain_terisi) < 4:
-        st.warning("⚠️ *Menunggu pemain lain masuk... Anda tetap bisa mulai menghitung.*")
+    if len(pemain_terisi) < 4: st.warning("⚠️ *Menunggu pemain lain masuk... Anda tetap bisa mulai menghitung.*")
     
     st.divider()
 
-    # --- PAPAN SALDO ---
     st.markdown("### 🏦 Saldo Cip Meja")
     c1, c2, c3, c4 = st.columns(4)
     
@@ -157,19 +170,15 @@ else:
     c3.metric(format_nama("Barat"), data_room["Barat"]["saldo"])
     c4.metric(format_nama("Utara"), data_room["Utara"]["saldo"])
     
-    if st.button("🔄 Segarkan Saldo Papan"): 
-        st.rerun()
+    if st.button("🔄 Segarkan Saldo Papan"): st.rerun()
     st.divider()
 
-    # --- KALKULATOR KEMENANGAN ---
     app = KalkulatorPemulaJ2()
     st.markdown("### 🧮 Hitung Kemenangan")
     
     col_p1, col_p2 = st.columns(2)
-    with col_p1: 
-        pemenang = st.selectbox("👑 Pemenang:", ["Timur", "Selatan", "Barat", "Utara"], format_func=format_nama)
-    with col_p2: 
-        cara_menang = st.radio("⚔️ Cara Menang:", ["RON (Buangan lawan)", "ZIMO (Ambil sendiri)"])
+    with col_p1: pemenang = st.selectbox("👑 Pemenang:", ["Timur", "Selatan", "Barat", "Utara"], format_func=format_nama)
+    with col_p2: cara_menang = st.radio("⚔️ Cara Menang:", ["RON (Buangan lawan)", "ZIMO (Ambil sendiri)"])
 
     if cara_menang == "RON (Buangan lawan)":
         opsi_kalah = ["Timur", "Selatan", "Barat", "Utara"]
@@ -184,8 +193,7 @@ else:
     
     st.write("")
     col_j, col_b = st.columns(2)
-    with col_j: 
-        jumlah_joker = st.number_input("Jumlah Joker dipakai:", 0, 4, 0)
+    with col_j: jumlah_joker = st.number_input("Jumlah Joker dipakai:", 0, 4, 0)
     with col_b:
         bonus_total = 0
         if st.checkbox("Set Naga (+1)"): bonus_total += 1
@@ -198,10 +206,8 @@ else:
     st.divider()
 
     col_btn1, col_btn2 = st.columns(2)
-    with col_btn1: 
-        cek_btn = st.button("🔍 CEK POIN", use_container_width=True)
-    with col_btn2: 
-        hitung_btn = st.button("🧮 SAH! POTONG SALDO", type="primary", use_container_width=True)
+    with col_btn1: cek_btn = st.button("🔍 CEK POIN", use_container_width=True)
+    with col_btn2: hitung_btn = st.button("🧮 SAH! POTONG SALDO", type="primary", use_container_width=True)
 
     if cek_btn:
         skor, nama = app.hitung_skor(ciri_pilihan, jumlah_joker, bonus_total, is_batal)
