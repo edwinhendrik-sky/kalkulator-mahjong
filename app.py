@@ -51,7 +51,7 @@ class KalkulatorPemulaJ2:
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Kasir Mahjong J2", layout="centered", page_icon="🀄")
 
-# --- SIDEBAR: KAMUS MENGGUNAKAN TILES.PNG & HONORS.PNG ---
+# --- SIDEBAR: KAMUS MENGGUNAKAN TILES.JPG & HONORS.JPG ---
 with st.sidebar:
     st.header("📖 Kamus Contekan")
     
