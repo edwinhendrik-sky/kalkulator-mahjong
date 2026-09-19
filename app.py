@@ -7,22 +7,16 @@ def get_room_database():
 
 db_room = get_room_database()
 
-# --- FUNGSI 1: GAMBAR DARI SERVER ALTERNATIF (ANTI BLOKIR) ---
+# --- FUNGSI 1: GAMBAR DARI SERVER ALTERNATIF ---
 def get_tile(tile_code, width=45):
-    # Menggunakan raw.github yang lebih stabil daripada jsdelivr
     base_url = "https://raw.githubusercontent.com/FluffyStuff/mahjong-tiles/master/svg/"
     return f"<img src='{base_url}{tile_code}.svg' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 5px;'>"
 
-# --- FUNGSI 2: KEPING DIGITAL CSS (100% OFFLINE, WARNA JELAS) ---
+# --- FUNGSI 2: KEPING DIGITAL CSS (DIPERBAIKI) ---
 def css_tile(char, color="#111", bottom_text=""):
-    """Menciptakan kotak keping Mahjong murni dari kode tanpa perlu donwload gambar"""
+    """Dibuat menjadi 1 baris agar Streamlit tidak salah membacanya sebagai blok kode"""
     sub_html = f"<div style='color: #c0392b; font-size: 11px; margin-top: 1px;'>{bottom_text}</div>" if bottom_text else ""
-    return f"""
-    <div style='display:inline-flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #aaa; border-radius: 5px; background: linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%); padding: 4px 8px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); min-width: 32px; vertical-align: middle;'>
-        <span style='color: {color}; font-size: 24px; font-weight: bold; line-height: 1.1; font-family: "Microsoft YaHei", "PingFang SC", sans-serif;'>{char}</span>
-        {sub_html}
-    </div>
-    """
+    return f"<div style='display:inline-flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #aaa; border-radius: 5px; background: linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%); padding: 4px 8px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); min-width: 32px; vertical-align: middle;'><span style='color: {color}; font-size: 24px; font-weight: bold; line-height: 1.1; font-family: \"Microsoft YaHei\", \"PingFang SC\", sans-serif;'>{char}</span>{sub_html}</div>"
 
 def render_css_row(items):
     html = "<div style='margin-bottom: 12px; display: flex; align-items: center;'>"
@@ -123,7 +117,6 @@ with st.sidebar:
     
     st.divider()
     st.markdown("**Naga (Dragon)**")
-    # Teks langsung diwarnai merah dan hijau sesuai karakter aslinya
     st.markdown(render_css_row([
         (css_tile("中", color="#c0392b"), "Merah"), 
         (css_tile("發", color="#27ae60"), "Hijau")
