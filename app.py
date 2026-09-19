@@ -2,7 +2,6 @@ import streamlit as st
 import os
 
 # --- DATABASE SEMENTARA (ROOM, SALDO, STATISTIK, & HISTORY) ---
-# Dimulai kosong tanpa room default
 @st.cache_resource
 def get_room_database():
     return {}
@@ -21,7 +20,7 @@ if "nama" not in st.session_state: st.session_state.nama = None
 
 # --- FUNGSI PREVIEW VISUAL ---
 def preview_keping(teks):
-    return f"<div style='font-size: 26px; text-align: center; background-color: #f8f9fa; padding: 6px; border-radius: 6px; letter-spacing: 2px; color: #1f1f1f; border: 1px solid #ddd;'>{teks}</div>"
+    return f"<div style='font-size: clamp(18px, 4vw, 26px); text-align: center; background-color: #f8f9fa; padding: 8px; border-radius: 6px; letter-spacing: 2px; color: #1f1f1f; border: 1px solid #ddd; word-break: break-all;'>{teks}</div>"
 
 class KalkulatorPemulaJ2:
     def __init__(self):
@@ -52,16 +51,28 @@ class KalkulatorPemulaJ2:
         if poin_joker == poin_murni and not pakai_joker: skor += 2 
         return skor + jumlah_joker + bonus_lain, nama_resmi
 
-# --- KONFIGURASI HALAMAN ---
+# --- KONFIGURASI HALAMAN RESPONSIF ---
 st.set_page_config(page_title="Aplikasi Mahjong Taiwan", layout="wide", page_icon="🀄")
 
-# --- CUSTOM CSS SIDEBAR ---
+# --- CUSTOM CSS UNTUK TAMPILAN RESPONSIF HP & KOMPUTER ---
 st.markdown(
     """
     <style>
-        [data-testid="stSidebar"] {
-            min-width: 350px;
-            max-width: 450px;
+        /* Mengatur padding halaman agar optimal di HP */
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        /* Styling kartu podium agar fleksibel */
+        .podium-card {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
     </style>
     """,
@@ -77,7 +88,8 @@ with st.sidebar:
 # --- FASE 1: LOBI ---
 if not st.session_state.room:
     st.title("🀄 Lobi Utama Mahjong")
-    col_lobi_kiri, col_lobi_kanan = st.columns([1, 1], gap="medium")
+    
+    col_lobi_kiri, col_lobi_kanan = st.columns(2, gap="medium")
 
     with col_lobi_kiri:
         st.subheader("📋 Room Tersedia")
@@ -87,12 +99,15 @@ if not st.session_state.room:
             for r_name, r_data in db_room.items():
                 jumlah_isi = sum(1 for k in r_data.values() if k["nama"] is not None)
                 with st.container(border=True):
-                    st.markdown(f"**🏠 {r_name}** | 👥 {jumlah_isi}/4 Kursi")
-                    kursi_terisi_str = ", ".join([f"{k}: {v['nama']}" for k, v in r_data.items() if v["nama"] is not None])
-                    st.caption(f"{kursi_terisi_str if kursi_terisi_str else 'Semua kursi kosong'}")
-                    if st.button(f"Masuk Room ini", key=f"btn_room_{r_name}", use_container_width=True):
-                        st.session_state.selected_room_quick = r_name
-                        st.rerun()
+                    col_li1, col_li2 = st.columns([3, 1])
+                    with col_li1:
+                        st.markdown(f"**🏠 {r_name}** | 👥 {jumlah_isi}/4 Kursi")
+                        kursi_terisi_str = ", ".join([f"{k}: {v['nama']}" for k, v in r_data.items() if v["nama"] is not None])
+                        st.caption(f"{kursi_terisi_str if kursi_terisi_str else 'Kosong'}")
+                    with col_li2:
+                        if st.button("Masuk", key=f"btn_room_{r_name}", use_container_width=True):
+                            st.session_state.selected_room_quick = r_name
+                            st.rerun()
 
     with col_lobi_kanan:
         st.subheader("🚀 Masuk / Buat Room")
@@ -144,7 +159,7 @@ else:
     if room not in db_history:
         db_history[room] = []
     
-    col_hdr1, col_hdr2 = st.columns([3, 2])
+    col_hdr1, col_hdr2 = st.columns([2, 1])
     with col_hdr1:
         st.markdown(f"### 🀄 Room: {room}")
         pemain_terisi = sum(1 for v in data_room.values() if v["nama"] is not None)
@@ -155,10 +170,10 @@ else:
         with col_btn_a:
             @st.dialog("🥾 Kosongkan Kursi Player")
             def dialog_kosongkan_kursi():
-                st.write("Pilih kursi pemain yang ingin dikosongkan (Saldo cip tetap aman):")
+                st.write("Pilih kursi pemain yang ingin dikosongkan:")
                 kursi_terisi_list = [k for k, v in data_room.items() if v["nama"] is not None]
                 if not kursi_terisi_list:
-                    st.info("Semua kursi sedang kosong.")
+                    st.info("Semua kursi kosong.")
                 else:
                     pilihan_kursi_kick = st.selectbox("Kursi:", kursi_terisi_list, format_func=lambda k: f"{k} ({data_room[k]['nama']})")
                     if st.button("Konfirmasi Kosongkan", type="primary"):
@@ -169,7 +184,7 @@ else:
                             st.session_state.kursi = None
                         st.rerun()
 
-            if st.button("🥾 Kosongkan", use_container_width=True):
+            if st.button("🥾 Kosong", use_container_width=True):
                 dialog_kosongkan_kursi()
         with col_btn_b:
             if st.button("🚪 Keluar", use_container_width=True):
@@ -181,7 +196,7 @@ else:
 
     st.markdown("<hr style='margin: 2px 0;'>", unsafe_allow_html=True)
 
-    # --- TANGGA PODIUM BERTINGKAT ---
+    # --- TANGGA PODIUM BERTINGKAT RESPONSIF ---
     data_klasemen = []
     for k in ["Timur", "Selatan", "Barat", "Utara"]:
         p_data = data_room[k]
@@ -206,19 +221,18 @@ else:
     for idx, (p_item, label_peringkat, style_tangga) in enumerate(urutan_tangga):
         with podium_cols[idx]:
             st.markdown(f"""
-            <div style="{style_tangga} padding: 4px; border-radius: 4px; border: 1px solid #ddd; background: white; text-align: center;">
+            <div style="{style_tangga}" class="podium-card">
                 <div style="font-size: 10px; font-weight: bold; color: #666;">{label_peringkat}</div>
-                <div style="font-size: 12px; font-weight: bold; color: #111;">{p_item['nama']} ({p_item['kursi']})</div>
-                <div style="font-size: 13px; font-weight: bold; color: #2e7d32; margin-top: 1px;">💰 {p_item['saldo']}</div>
-                <div style="font-size: 9px; color: #777;">Menang: {p_item['menang']}x</div>
+                <div style="font-size: 11px; font-weight: bold; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{p_item['nama']}</div>
+                <div style="font-size: 12px; font-weight: bold; color: #2e7d32;">💰 {p_item['saldo']}</div>
             </div>
             """, unsafe_allow_html=True)
 
     st.markdown("<hr style='margin: 6px 0;'>", unsafe_allow_html=True)
 
-    # --- LAYOUT KALKULATOR ---
+    # --- LAYOUT KALKULATOR FLEKSIBEL ---
     app = KalkulatorPemulaJ2()
-    col_calc_kiri, col_calc_kanan = st.columns([1.1, 1], gap="small")
+    col_calc_kiri, col_calc_kanan = st.columns(2, gap="medium")
 
     with col_calc_kiri:
         st.markdown("##### 🧮 Input Kemenangan")
@@ -280,7 +294,7 @@ else:
             data_room[pemenang]["menang"] = data_room[pemenang].get("menang", 0) + 1
             if cara_menang == "RON (Buangan lawan)":
                 pembuang_nama_asli = data_room[pembuang]["nama"] or pembuang
-                teks_history = f"⚔️ **RON**: {pemenang_nama_asli} (+{skor*4}) dari buangan {pembuang_nama_asli} (-{skor*2})."
+                teks_history = f"⚔️ **RON**: {pemenang_nama_asli} (+{skor*4}) dari {pembuang_nama_asli} (-{skor*2})."
                 for kursi in ["Timur", "Selatan", "Barat", "Utara"]:
                     if kursi == pemenang: data_room[kursi]["saldo"] += (skor * 4)
                     elif kursi == pembuang: data_room[kursi]["saldo"] -= (skor * 2) 
