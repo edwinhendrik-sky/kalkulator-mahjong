@@ -54,7 +54,6 @@ st.set_page_config(page_title="Kasir Mahjong J2", layout="centered", page_icon="
 # --- SIDEBAR: KAMUS MENGGUNAKAN TILES.JPG & HONORS.JPG ---
 with st.sidebar:
     st.header("📖 Kamus Contekan")
-    
     if os.path.exists("tiles.jpg"): 
         st.image("tiles.jpg", caption="Keping Angka", use_container_width=True)
     else: 
@@ -107,7 +106,6 @@ if not st.session_state.room:
                     }
                 
                 kursi_saat_ini = db_room[input_room][input_kursi]["nama"]
-                
                 if kursi_saat_ini is not None and kursi_saat_ini != input_nama and not paksa_masuk:
                     st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}! Centang 'Paksa ambil alih' di atas jika Anda ingin menimpanya.")
                 else:
@@ -117,13 +115,13 @@ if not st.session_state.room:
                     st.session_state.kursi = input_kursi
                     st.rerun()
 
-# --- FASE 2: HALAMAN MEJA (KALKULATOR & LEADERBOARD) ---
+# --- FASE 2: HALAMAN MEJA (LAYOUT MEJA MAHJONG & KALKULATOR) ---
 else:
     room = st.session_state.room
     data_room = db_room[room]
     
     col_hdr1, col_hdr2 = st.columns([3,1])
-    col_hdr1.title("🀄 Kasir Mahjong J2")
+    col_hdr1.title(f"🀄 Meja: {room}")
     if col_hdr2.button("🚪 Keluar Meja"):
         db_room[room][st.session_state.kursi]["nama"] = None
         st.session_state.room = None
@@ -132,10 +130,10 @@ else:
         st.rerun()
 
     pemain_terisi = [k for k, v in data_room.items() if v["nama"] is not None]
-    st.info(f"👥 **Room: {room} | Terisi: {len(pemain_terisi)}/4 Kursi**")
+    st.info(f"👥 **Status Meja: {len(pemain_terisi)}/4 Kursi Terisi**")
     
     with st.expander("🛠️ Pengaturan Kursi (Tendang Pemain AFK)"):
-        st.markdown("Jika ada teman yang aplikasinya *error* atau lupa *logout*, kosongkan kursinya di sini **tanpa menghapus saldo cipnya**.")
+        st.markdown("Kosongkan kursi jika ada pemain yang *error* atau lupa *logout* (saldo tetap aman).")
         for k_seat in ["Timur", "Selatan", "Barat", "Utara"]:
             nama_seat = data_room[k_seat]["nama"]
             if nama_seat:
@@ -153,37 +151,44 @@ else:
 
     st.divider()
 
-    # --- LEADERBOARD KLASEMEN MEJA ---
-    st.markdown("### 🏆 Papan Klasemen (Leaderboard)")
+    # --- LAYOUT FISIK MEJA MAHJONG (POSISI 4 ARAH ANGIN) ---
+    st.markdown("### 🀄 Layout Meja & Saldo Player")
     
-    data_klasemen = []
-    for k in ["Timur", "Selatan", "Barat", "Utara"]:
-        nama_p = data_room[k]["nama"]
-        tampil_nama = f"{nama_p} ({k})" if nama_p else f"Kursi {k} (Kosong)"
-        saldo_p = data_room[k]["saldo"]
-        menang_p = data_room[k].get("menang", 0)
-        data_klasemen.append({"nama": tampil_nama, "saldo": saldo_p, "menang": menang_p})
+    # Fungsi pembantu info player di meja
+    def info_meja(arah):
+        p = data_room[arah]
+        nm = p["nama"] if p["nama"] else "(Kosong)"
+        return nm, p["saldo"], p.get("menang", 0)
+
+    # Posisi Atas (Utara)
+    t_nama, t_saldo, t_menang = info_meja("Utara")
+    col_u1, col_u2, col_u3 = st.columns([1, 2, 1])
+    with col_u2:
+        with st.container(border=True):
+            st.markdown(f"<div style='text-align: center;'><b>⬆️ UTARA</b><br><b>{t_nama}</b><br><span style='color: #2e7d32; font-weight: bold;'>💰 {t_saldo} Cip</span><br><span style='font-size: 12px; color: #666;'>Menang: {t_menang}x</span></div>", unsafe_allow_html=True)
+
+    # Posisi Tengah (Barat & Timur berdampingan)
+    b_nama, b_saldo, b_menang = info_meja("Barat")
+    tm_nama, tm_saldo, tm_menang = info_meja("Timur")
     
-    data_klasemen = sorted(data_klasemen, key=lambda x: x["saldo"], reverse=True)
-    
-    leaderboard_html = "<div style='background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e0e0e0;'>"
-    medali = ["🥇", "🥈", "🥉", "💩"]
-    for i, p in enumerate(data_klasemen):
-        warna_teks = "#155724" if i == 0 else "#856404" if i == 1 else "#383d41" if i == 2 else "#721c24"
-        bg_warna = "#d4edda" if i == 0 else "#fff3cd" if i == 1 else "#e2e3e5" if i == 2 else "#f8d7da"
-        leaderboard_html += f"""
-        <div style='display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; border-radius: 8px; background-color: {bg_warna}; color: {warna_teks};'>
-            <div style='font-size: 18px; font-weight: bold;'>{medali[i]} Peringkat {i+1} : {p['nama']}</div>
-            <div style='text-align: right;'>
-                <div style='font-size: 20px; font-weight: bold;'>💰 {p['saldo']} Cip</div>
-                <div style='font-size: 14px; opacity: 0.8;'>Menang: {p['menang']}x</div>
-            </div>
-        </div>
-        """
-    leaderboard_html += "</div>"
-    st.markdown(leaderboard_html, unsafe_allow_html=True)
-    
-    if st.button("🔄 Segarkan Data Papan"): st.rerun()
+    col_m1, col_tengah, col_m3 = st.columns([2, 1, 2])
+    with col_m1:
+        with st.container(border=True):
+            st.markdown(f"<div style='text-align: center;'><b>⬅️ BARAT</b><br><b>{b_nama}</b><br><span style='color: #2e7d32; font-weight: bold;'>💰 {b_saldo} Cip</span><br><span style='font-size: 12px; color: #666;'>Menang: {b_menang}x</span></div>", unsafe_allow_html=True)
+    with col_tengah:
+        st.markdown("<div style='text-align: center; padding-top: 15px; font-size: 24px;'>🀄</div>", unsafe_allow_html=True)
+    with col_m3:
+        with st.container(border=True):
+            st.markdown(f"<div style='text-align: center;'><b>TIMUR ➡️</b><br><b>{tm_nama}</b><br><span style='color: #2e7d32; font-weight: bold;'>💰 {tm_saldo} Cip</span><br><span style='font-size: 12px; color: #666;'>Menang: {tm_menang}x</span></div>", unsafe_allow_html=True)
+
+    # Posisi Bawah (Selatan)
+    s_nama, s_saldo, s_menang = info_meja("Selatan")
+    col_s1, col_s2, col_s3 = st.columns([1, 2, 1])
+    with col_s2:
+        with st.container(border=True):
+            st.markdown(f"<div style='text-align: center;'><b>⬇️ SELATAN</b><br><b>{s_nama}</b><br><span style='color: #2e7d32; font-weight: bold;'>💰 {s_saldo} Cip</span><br><span style='font-size: 12px; color: #666;'>Menang: {s_menang}x</span></div>", unsafe_allow_html=True)
+
+    if st.button("🔄 Segarkan Status Meja"): st.rerun()
     st.divider()
 
     def format_nama(k):
