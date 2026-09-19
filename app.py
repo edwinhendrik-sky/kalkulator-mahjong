@@ -90,9 +90,9 @@ if not st.session_state.room:
         with col_btn1:
             submit_btn = st.form_submit_button("Masuk ke Meja", type="primary")
         with col_btn2:
-            reset_btn = st.form_submit_button("🧹 Reset Saldo Meja")
+            reset_btn = st.form_submit_button("🧹 Reset Total Meja")
 
-        # LOGIKA TOMBOL RESET
+        # LOGIKA TOMBOL RESET (Hati-hati, ini mereset saldo ke 1000)
         if reset_btn:
             if input_room:
                 db_room[input_room] = {
@@ -120,7 +120,6 @@ if not st.session_state.room:
                 
                 kursi_saat_ini = db_room[input_room][input_kursi]["nama"]
                 
-                # Tolak jika kursi terisi, KECUALI pemain menekan tombol 'Paksa ambil alih' atau namanya sama persis
                 if kursi_saat_ini is not None and kursi_saat_ini != input_nama and not paksa_masuk:
                     st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}! Centang 'Paksa ambil alih kursi' di atas jika Anda ingin menimpanya.")
                 else:
@@ -145,19 +144,33 @@ else:
         st.rerun()
 
     pemain_terisi = [k for k, v in data_room.items() if v["nama"] is not None]
-    
     st.info(f"👥 **Room: {room} | Terisi: {len(pemain_terisi)}/4 Kursi**")
-    teks_status = []
-    for k in ["Timur", "Selatan", "Barat", "Utara"]:
-        nama_pemain = data_room[k]["nama"]
-        if nama_pemain: teks_status.append(f"**{k}**: {nama_pemain}")
-        else: teks_status.append(f"*{k}*: (Kosong)")
     
-    st.markdown(" | ".join(teks_status))
-    if len(pemain_terisi) < 4: st.warning("⚠️ *Menunggu pemain lain masuk... Anda tetap bisa mulai menghitung.*")
-    
+    # --- FITUR BARU: MANAJEMEN KURSI (TENDANG PEMAIN AFK) ---
+    with st.expander("🛠️ Pengaturan Kursi (Tendang Pemain AFK)"):
+        st.markdown("Jika ada teman yang aplikasinya *error* atau lupa *logout*, kosongkan kursinya di sini **tanpa menghapus saldo cipnya**.")
+        
+        for k_seat in ["Timur", "Selatan", "Barat", "Utara"]:
+            nama_seat = data_room[k_seat]["nama"]
+            if nama_seat:
+                col_t1, col_t2 = st.columns([3, 1])
+                col_t1.markdown(f"**{k_seat}**: {nama_seat}")
+                if col_t2.button(f"🥾 Kosongkan {k_seat}", key=f"kick_{k_seat}"):
+                    # Hapus nama saja, saldo tetap aman
+                    db_room[room][k_seat]["nama"] = None
+                    
+                    # Jika yang ditendang adalah dirinya sendiri, keluarkan dari sesi
+                    if st.session_state.kursi == k_seat:
+                        st.session_state.room = None
+                        st.session_state.nama = None
+                        st.session_state.kursi = None
+                    st.rerun()
+            else:
+                st.markdown(f"**{k_seat}**: *(Kosong)*")
+
     st.divider()
 
+    # --- PAPAN SALDO ---
     st.markdown("### 🏦 Saldo Cip Meja")
     c1, c2, c3, c4 = st.columns(4)
     
