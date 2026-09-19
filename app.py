@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import base64
 
-# --- DATABASE SEMENTARA ---
+# --- DATABASE SEMENTARA (ROOM & SALDO) ---
 @st.cache_resource
 def get_room_database():
     return {}
@@ -17,7 +17,7 @@ def get_local_tile(nama_file, width=35):
             encoded_string = base64.b64encode(image_file.read()).decode()
             return f"<img src='data:image/svg+xml;base64,{encoded_string}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
     else:
-        # Cadangan jika gambar gagal didownload
+        # Cadangan jika gambar belum ada di folder assets
         return f"<div style='display:inline-block; width:{width}px; height:{(width*1.3)}px; border:1px solid #999; background:#eee; margin-right:3px;'></div>"
 
 def render_formasi(simbol_list):
@@ -85,20 +85,26 @@ class KalkulatorPemulaJ2:
         return skor + jumlah_joker + bonus_lain, nama_resmi
 
 # --- KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Kasir Mahjong (Offline Image)", layout="centered", page_icon="🀄")
+st.set_page_config(page_title="Kasir Mahjong J2", layout="centered", page_icon="🀄")
 
-# --- SIDEBAR: KAMUS LOKAL ---
+# --- SIDEBAR: KAMUS LOKAL (Diperbarui dengan use_container_width) ---
 with st.sidebar:
     st.header("📖 Kamus Contekan")
-    if os.path.exists("Tiles_2.jpg"): st.image("Tiles_2.jpg", use_column_width=True)
-    else: st.warning("Simpan gambar Tiles_2.jpg di folder yang sama untuk melihat kamus ini.")
+    
+    if os.path.exists("Tiles_2.jpg"): 
+        st.image("Tiles_2.jpg", caption="Keping Angka (Suit Tiles)", use_container_width=True)
+    else: 
+        st.warning("Simpan gambar 'Tiles_2.jpg' di folder yang sama untuk melihat kamus ini.")
     
     st.divider()
     
-    if os.path.exists("honors_2.jpg"): st.image("honors_2.jpg", use_column_width=True)
-    else: st.warning("Simpan gambar honors_2.jpg di folder yang sama untuk melihat kamus ini.")
+    if os.path.exists("honors_2.jpg"): 
+        st.image("honors_2.jpg", caption="Keping Tulisan (Honors)", use_container_width=True)
+    else: 
+        st.warning("Simpan gambar 'honors_2.jpg' di folder yang sama untuk melihat kamus ini.")
 
-# --- SISTEM LOGIN & KALKULATOR UTAMA ---
+
+# --- SISTEM LOGIN ROOM & BUKU KAS ---
 st.title("🀄 Kasir Mahjong J2")
 
 room_input = st.text_input("🔑 Masukkan Kode Meja (Contoh: VIP1):", "").upper()
@@ -115,16 +121,20 @@ if room_input:
     c3.metric("Barat", db_room[room_input]["Barat"])
     c4.metric("Utara", db_room[room_input]["Utara"])
     
-    if st.button("🔄 Segarkan Saldo"): st.rerun()
+    if st.button("🔄 Segarkan Saldo"): 
+        st.rerun()
 
     st.divider()
 
+    # --- KALKULATOR UTAMA ---
     app = KalkulatorPemulaJ2()
     st.markdown("### 🧮 Hitung Kemenangan")
     
     col_p1, col_p2 = st.columns(2)
-    with col_p1: pemenang = st.selectbox("👑 Pemenang:", ["Timur", "Selatan", "Barat", "Utara"])
-    with col_p2: cara_menang = st.radio("⚔️ Cara Menang:", ["RON (Buangan lawan)", "ZIMO (Ambil sendiri)"])
+    with col_p1: 
+        pemenang = st.selectbox("👑 Pemenang:", ["Timur", "Selatan", "Barat", "Utara"])
+    with col_p2: 
+        cara_menang = st.radio("⚔️ Cara Menang:", ["RON (Buangan lawan)", "ZIMO (Ambil sendiri)"])
 
     if cara_menang == "RON (Buangan lawan)":
         opsi_kalah = ["Timur", "Selatan", "Barat", "Utara"]
@@ -140,7 +150,8 @@ if room_input:
     
     st.write("")
     col_j, col_b = st.columns(2)
-    with col_j: jumlah_joker = st.number_input("Jumlah Joker dipakai:", 0, 4, 0)
+    with col_j: 
+        jumlah_joker = st.number_input("Jumlah Joker dipakai:", 0, 4, 0)
     with col_b:
         bonus_total = 0
         if st.checkbox("Set Naga (+1)"): bonus_total += 1
@@ -153,30 +164,42 @@ if room_input:
     st.divider()
 
     col_btn1, col_btn2 = st.columns(2)
-    with col_btn1: cek_btn = st.button("🔍 CEK POIN", use_container_width=True)
-    with col_btn2: hitung_btn = st.button("🧮 SAH! POTONG SALDO", type="primary", use_container_width=True)
+    with col_btn1: 
+        cek_btn = st.button("🔍 CEK POIN", use_container_width=True)
+    with col_btn2: 
+        hitung_btn = st.button("🧮 SAH! POTONG SALDO", type="primary", use_container_width=True)
 
+    # --- LOGIKA EKSEKUSI ---
     if cek_btn:
         skor, nama = app.hitung_skor(ciri_pilihan, jumlah_joker, bonus_total, is_batal)
-        if skor < 3: st.error(f"🛑 Jangan teriak menang! Poin baru {skor}.")
-        else: st.success(f"✅ Aman! Poin Anda {skor}.")
+        if skor < 3: 
+            st.error(f"🛑 Jangan teriak menang! Poin baru {skor}.")
+        else: 
+            st.success(f"✅ Aman! Poin Anda {skor}.")
 
     if hitung_btn:
         skor, nama = app.hitung_skor(ciri_pilihan, jumlah_joker, bonus_total, is_batal)
         if is_batal or skor < 3:
             st.error(f"❌ TIDAK SAH! Poin cuma {skor}. Penalti -30 poin dijatuhkan ke {pemenang}.")
             for kursi in ["Timur", "Selatan", "Barat", "Utara"]:
-                if kursi == pemenang: db_room[room_input][kursi] -= 30
-                else: db_room[room_input][kursi] += 10
+                if kursi == pemenang: 
+                    db_room[room_input][kursi] -= 30
+                else: 
+                    db_room[room_input][kursi] += 10
             st.rerun()
         else:
             if cara_menang == "RON (Buangan lawan)":
                 for kursi in ["Timur", "Selatan", "Barat", "Utara"]:
-                    if kursi == pemenang: db_room[room_input][kursi] += (skor * 4)
-                    elif kursi == pembuang: db_room[room_input][kursi] -= (skor * 2) 
-                    else: db_room[room_input][kursi] -= skor 
+                    if kursi == pemenang: 
+                        db_room[room_input][kursi] += (skor * 4)
+                    elif kursi == pembuang: 
+                        db_room[room_input][kursi] -= (skor * 2) 
+                    else: 
+                        db_room[room_input][kursi] -= skor 
             else: 
                 for kursi in ["Timur", "Selatan", "Barat", "Utara"]:
-                    if kursi == pemenang: db_room[room_input][kursi] += (skor * 6)
-                    else: db_room[room_input][kursi] -= (skor * 2) 
+                    if kursi == pemenang: 
+                        db_room[room_input][kursi] += (skor * 6)
+                    else: 
+                        db_room[room_input][kursi] -= (skor * 2) 
             st.rerun()
