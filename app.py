@@ -15,15 +15,20 @@ if "kursi" not in st.session_state: st.session_state.kursi = None
 if "nama" not in st.session_state: st.session_state.nama = None
 
 
-# --- FUNGSI BACA GAMBAR LOKAL ---
+# --- FUNGSI BACA GAMBAR (LOKAL + CADANGAN INTERNET) ---
 def get_local_tile(nama_file, width=35):
     filepath = f"assets/{nama_file}.svg"
+    
+    # Skenario 1: Jika gambar ada di komputer, muat secepat kilat (Offline)
     if os.path.exists(filepath):
         with open(filepath, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
             return f"<img src='data:image/svg+xml;base64,{encoded_string}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
+    
+    # Skenario 2: Jika gambar tidak ada di komputer, ambil dari internet sebagai cadangan (Anti-Gagal)
     else:
-        return f"<div style='display:inline-block; width:{width}px; height:{(width*1.3)}px; border:1px solid #999; background:#eee; margin-right:3px;'></div>"
+        url = f"https://raw.githubusercontent.com/FluffyStuff/mahjong-tiles/master/svg/{nama_file}.svg"
+        return f"<img src='{url}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
 
 def render_formasi(simbol_list):
     html = "<div style='display: flex; align-items: center; flex-wrap: wrap; background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #ddd;'>"
@@ -89,7 +94,6 @@ if not st.session_state.room:
             if not input_room or not input_nama:
                 st.error("Kode Meja dan Nama wajib diisi!")
             else:
-                # Bikin room baru jika belum ada
                 if input_room not in db_room:
                     db_room[input_room] = {
                         "Timur": {"nama": None, "saldo": 1000},
@@ -98,12 +102,10 @@ if not st.session_state.room:
                         "Utara": {"nama": None, "saldo": 1000}
                     }
                 
-                # Cek apakah kursi sudah diduduki orang lain
                 kursi_saat_ini = db_room[input_room][input_kursi]["nama"]
                 if kursi_saat_ini is not None and kursi_saat_ini != input_nama:
                     st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}!")
                 else:
-                    # Berhasil duduk
                     db_room[input_room][input_kursi]["nama"] = input_nama
                     st.session_state.room = input_room
                     st.session_state.nama = input_nama
@@ -115,18 +117,16 @@ else:
     room = st.session_state.room
     data_room = db_room[room]
     
-    # Header & Tombol Keluar
     col_hdr1, col_hdr2 = st.columns([3,1])
     col_hdr1.title("🀄 Kasir Mahjong J2")
     if col_hdr2.button("🚪 Keluar Meja"):
-        # Kosongkan kursi saat keluar
         db_room[room][st.session_state.kursi]["nama"] = None
         st.session_state.room = None
         st.session_state.nama = None
         st.session_state.kursi = None
         st.rerun()
 
-    # --- BANNER STATUS ROOM (BERAPA ORANG & SIAPA SAJA) ---
+    # --- BANNER STATUS ROOM ---
     pemain_terisi = [k for k, v in data_room.items() if v["nama"] is not None]
     
     st.info(f"👥 **Room: {room} | Terisi: {len(pemain_terisi)}/4 Kursi**")
@@ -148,7 +148,6 @@ else:
     st.markdown("### 🏦 Saldo Cip Meja")
     c1, c2, c3, c4 = st.columns(4)
     
-    # Fungsi pembantu untuk nampilin format Nama (Kursi)
     def format_nama(k):
         nm = data_room[k]["nama"]
         return f"{nm} ({k})" if nm else f"Kosong ({k})"
@@ -158,7 +157,7 @@ else:
     c3.metric(format_nama("Barat"), data_room["Barat"]["saldo"])
     c4.metric(format_nama("Utara"), data_room["Utara"]["saldo"])
     
-    if st.button("🔄 Segarkan Saldo Papan (Sync)"): 
+    if st.button("🔄 Segarkan Saldo Papan"): 
         st.rerun()
     st.divider()
 
@@ -166,7 +165,6 @@ else:
     app = KalkulatorPemulaJ2()
     st.markdown("### 🧮 Hitung Kemenangan")
     
-    # Dropdown sekarang menampilkan Nama Pemain yang asli
     col_p1, col_p2 = st.columns(2)
     with col_p1: 
         pemenang = st.selectbox("👑 Pemenang:", ["Timur", "Selatan", "Barat", "Utara"], format_func=format_nama)
@@ -205,7 +203,6 @@ else:
     with col_btn2: 
         hitung_btn = st.button("🧮 SAH! POTONG SALDO", type="primary", use_container_width=True)
 
-    # --- LOGIKA EKSEKUSI ---
     if cek_btn:
         skor, nama = app.hitung_skor(ciri_pilihan, jumlah_joker, bonus_total, is_batal)
         if skor < 3: st.error(f"🛑 Jangan teriak menang! Poin baru {skor}.")
