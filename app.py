@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import base64
 
-# --- DATABASE SEMENTARA (ROOM & SALDO) ---
+# --- DATABASE SEMENTARA (ROOM, SALDO, & STATISTIK MENANG) ---
 @st.cache_resource
 def get_room_database():
     return {}
@@ -75,7 +75,7 @@ with st.sidebar:
     if os.path.exists("Tiles_2.jpg"): st.image("Tiles_2.jpg", use_container_width=True)
     if os.path.exists("honors_2.jpg"): st.image("honors_2.jpg", use_container_width=True)
 
-# --- FASE 1: HALAMAN LOBI (LOGIN DENGAN RESET & TAKEOVER) ---
+# --- FASE 1: HALAMAN LOBI (LOGIN & RESET) ---
 if not st.session_state.room:
     st.title("🀄 Lobi Mahjong J2")
     st.markdown("Daftar untuk menempati kursi, atau reset data meja jika ada pemain yang keluar tanpa *logout*.")
@@ -92,36 +92,35 @@ if not st.session_state.room:
         with col_btn2:
             reset_btn = st.form_submit_button("🧹 Reset Total Meja")
 
-        # LOGIKA TOMBOL RESET (Hati-hati, ini mereset saldo ke 1000)
         if reset_btn:
             if input_room:
+                # Membuat/Mereset Room lengkap dengan pencatat kemenangan ("menang": 0)
                 db_room[input_room] = {
-                    "Timur": {"nama": None, "saldo": 1000},
-                    "Selatan": {"nama": None, "saldo": 1000},
-                    "Barat": {"nama": None, "saldo": 1000},
-                    "Utara": {"nama": None, "saldo": 1000}
+                    "Timur": {"nama": None, "saldo": 1000, "menang": 0},
+                    "Selatan": {"nama": None, "saldo": 1000, "menang": 0},
+                    "Barat": {"nama": None, "saldo": 1000, "menang": 0},
+                    "Utara": {"nama": None, "saldo": 1000, "menang": 0}
                 }
                 st.success(f"✅ Data meja '{input_room}' berhasil dikosongkan dan di-reset ke 1.000 cip!")
             else:
                 st.error("Isi Kode Meja terlebih dahulu untuk mereset meja tersebut!")
 
-        # LOGIKA TOMBOL MASUK
         if submit_btn:
             if not input_room or not input_nama:
                 st.error("Kode Meja dan Nama wajib diisi!")
             else:
                 if input_room not in db_room:
                     db_room[input_room] = {
-                        "Timur": {"nama": None, "saldo": 1000},
-                        "Selatan": {"nama": None, "saldo": 1000},
-                        "Barat": {"nama": None, "saldo": 1000},
-                        "Utara": {"nama": None, "saldo": 1000}
+                        "Timur": {"nama": None, "saldo": 1000, "menang": 0},
+                        "Selatan": {"nama": None, "saldo": 1000, "menang": 0},
+                        "Barat": {"nama": None, "saldo": 1000, "menang": 0},
+                        "Utara": {"nama": None, "saldo": 1000, "menang": 0}
                     }
                 
                 kursi_saat_ini = db_room[input_room][input_kursi]["nama"]
                 
                 if kursi_saat_ini is not None and kursi_saat_ini != input_nama and not paksa_masuk:
-                    st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}! Centang 'Paksa ambil alih kursi' di atas jika Anda ingin menimpanya.")
+                    st.error(f"❌ Kursi {input_kursi} sudah diklaim oleh {kursi_saat_ini}! Centang 'Paksa ambil alih' di atas jika Anda ingin menimpanya.")
                 else:
                     db_room[input_room][input_kursi]["nama"] = input_nama
                     st.session_state.room = input_room
@@ -129,7 +128,7 @@ if not st.session_state.room:
                     st.session_state.kursi = input_kursi
                     st.rerun()
 
-# --- FASE 2: HALAMAN MEJA (KALKULATOR) ---
+# --- FASE 2: HALAMAN MEJA (KALKULATOR & LEADERBOARD) ---
 else:
     room = st.session_state.room
     data_room = db_room[room]
@@ -146,20 +145,15 @@ else:
     pemain_terisi = [k for k, v in data_room.items() if v["nama"] is not None]
     st.info(f"👥 **Room: {room} | Terisi: {len(pemain_terisi)}/4 Kursi**")
     
-    # --- FITUR BARU: MANAJEMEN KURSI (TENDANG PEMAIN AFK) ---
     with st.expander("🛠️ Pengaturan Kursi (Tendang Pemain AFK)"):
         st.markdown("Jika ada teman yang aplikasinya *error* atau lupa *logout*, kosongkan kursinya di sini **tanpa menghapus saldo cipnya**.")
-        
         for k_seat in ["Timur", "Selatan", "Barat", "Utara"]:
             nama_seat = data_room[k_seat]["nama"]
             if nama_seat:
                 col_t1, col_t2 = st.columns([3, 1])
                 col_t1.markdown(f"**{k_seat}**: {nama_seat}")
                 if col_t2.button(f"🥾 Kosongkan {k_seat}", key=f"kick_{k_seat}"):
-                    # Hapus nama saja, saldo tetap aman
                     db_room[room][k_seat]["nama"] = None
-                    
-                    # Jika yang ditendang adalah dirinya sendiri, keluarkan dari sesi
                     if st.session_state.kursi == k_seat:
                         st.session_state.room = None
                         st.session_state.nama = None
@@ -170,21 +164,45 @@ else:
 
     st.divider()
 
-    # --- PAPAN SALDO ---
-    st.markdown("### 🏦 Saldo Cip Meja")
-    c1, c2, c3, c4 = st.columns(4)
+    # --- FITUR BARU: LEADERBOARD KLASEMEN MEJA ---
+    st.markdown("### 🏆 Papan Klasemen (Leaderboard)")
     
+    # Kumpulkan data dari dictionary dan urutkan berdasarkan saldo tertinggi
+    data_klasemen = []
+    for k in ["Timur", "Selatan", "Barat", "Utara"]:
+        nama_p = data_room[k]["nama"]
+        tampil_nama = f"{nama_p} ({k})" if nama_p else f"Kursi {k} (Kosong)"
+        saldo_p = data_room[k]["saldo"]
+        menang_p = data_room[k].get("menang", 0) # Pakai .get jaga-jaga kalau data lama belum punya key ini
+        data_klasemen.append({"nama": tampil_nama, "saldo": saldo_p, "menang": menang_p})
+    
+    # Sortir dari cip terbesar ke terkecil
+    data_klasemen = sorted(data_klasemen, key=lambda x: x["saldo"], reverse=True)
+    
+    # Desain UI Leaderboard
+    leaderboard_html = "<div style='background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e0e0e0;'>"
+    medali = ["🥇", "🥈", "🥉", "💩"]
+    for i, p in enumerate(data_klasemen):
+        warna_teks = "#155724" if i == 0 else "#856404" if i == 1 else "#383d41" if i == 2 else "#721c24"
+        bg_warna = "#d4edda" if i == 0 else "#fff3cd" if i == 1 else "#e2e3e5" if i == 2 else "#f8d7da"
+        leaderboard_html += f"""
+        <div style='display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; border-radius: 8px; background-color: {bg_warna}; color: {warna_teks};'>
+            <div style='font-size: 18px; font-weight: bold;'>{medali[i]} Peringkat {i+1} : {p['nama']}</div>
+            <div style='text-align: right;'>
+                <div style='font-size: 20px; font-weight: bold;'>💰 {p['saldo']} Cip</div>
+                <div style='font-size: 14px; opacity: 0.8;'>Menang: {p['menang']}x</div>
+            </div>
+        </div>
+        """
+    leaderboard_html += "</div>"
+    st.markdown(leaderboard_html, unsafe_allow_html=True)
+    
+    if st.button("🔄 Segarkan Data Papan"): st.rerun()
+    st.divider()
+
     def format_nama(k):
         nm = data_room[k]["nama"]
         return f"{nm} ({k})" if nm else f"Kosong ({k})"
-
-    c1.metric(format_nama("Timur"), data_room["Timur"]["saldo"])
-    c2.metric(format_nama("Selatan"), data_room["Selatan"]["saldo"])
-    c3.metric(format_nama("Barat"), data_room["Barat"]["saldo"])
-    c4.metric(format_nama("Utara"), data_room["Utara"]["saldo"])
-    
-    if st.button("🔄 Segarkan Saldo Papan"): st.rerun()
-    st.divider()
 
     app = KalkulatorPemulaJ2()
     st.markdown("### 🧮 Hitung Kemenangan")
@@ -229,6 +247,7 @@ else:
 
     if hitung_btn:
         skor, nama = app.hitung_skor(ciri_pilihan, jumlah_joker, bonus_total, is_batal)
+        
         if is_batal or skor < 3:
             st.error(f"❌ TIDAK SAH! Poin cuma {skor}. Penalti -30 poin dijatuhkan ke {format_nama(pemenang)}.")
             for kursi in ["Timur", "Selatan", "Barat", "Utara"]:
@@ -236,6 +255,9 @@ else:
                 else: data_room[kursi]["saldo"] += 10
             st.rerun()
         else:
+            # FITUR BARU: Tambah statistik jumlah menang si Pemenang
+            data_room[pemenang]["menang"] = data_room[pemenang].get("menang", 0) + 1
+            
             if cara_menang == "RON (Buangan lawan)":
                 for kursi in ["Timur", "Selatan", "Barat", "Utara"]:
                     if kursi == pemenang: data_room[kursi]["saldo"] += (skor * 4)
