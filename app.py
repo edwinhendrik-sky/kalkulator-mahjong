@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-import base64
 
 # --- DATABASE SEMENTARA (ROOM, SALDO, & STATISTIK MENANG) ---
 @st.cache_resource
@@ -14,47 +13,30 @@ if "room" not in st.session_state: st.session_state.room = None
 if "kursi" not in st.session_state: st.session_state.kursi = None
 if "nama" not in st.session_state: st.session_state.nama = None
 
-# --- FUNGSI BACA GAMBAR (LOKAL + CADANGAN INTERNET) ---
-def get_local_tile(nama_file, width=35):
-    filepath = f"assets/{nama_file}.svg"
-    if os.path.exists(filepath):
-        with open(filepath, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
-            return f"<img src='data:image/svg+xml;base64,{encoded_string}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
-    else:
-        url = f"https://raw.githubusercontent.com/FluffyStuff/mahjong-tiles/master/svg/{nama_file}.svg"
-        return f"<img src='{url}' width='{width}' style='vertical-align: middle; border-radius: 4px; box-shadow: 1px 2px 4px rgba(0,0,0,0.3); margin-right: 3px;'>"
-
-def render_formasi(simbol_list):
-    html = "<div style='display: flex; align-items: center; flex-wrap: wrap; background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #ddd;'>"
-    for item in simbol_list:
-        if item == ' ': html += "<div style='width: 10px;'></div>"
-        elif item == '+': html += "<div style='margin: 0 10px; font-weight: bold; font-size: 24px; color: #555;'>+</div>"
-        elif item.startswith("Teks:"): html += f"<span style='font-size: 16px; margin-left: 10px; font-weight:bold;'>{item.replace('Teks:', '')}</span>"
-        else: html += get_local_tile(item)
-    html += "</div>"
-    return html
+# --- FUNGSI PREVIEW VISUAL (SUPER CEPAT BERBASIS TEKS) ---
+def preview_keping(teks):
+    return f"<div style='font-size: 38px; text-align: center; background-color: #f8f9fa; padding: 10px; border-radius: 10px; letter-spacing: 2px; color: #1f1f1f; border: 1px solid #ddd;'>{teks}</div>"
 
 class KalkulatorPemulaJ2:
     def __init__(self):
         self.katalog_visual = {
-            "🔀 Campur aduk (Ada seri, ada kembar, beda warna)": (0, 0, "CHICKEN HAND", ['Pin1','Pin2','Pin3',' ','Sou5','Sou5','Sou5',' ','Pin5','Pin6','Pin7',' ','Man1','Man2','Man3','+','Ton','Ton']),
-            "🔢 Semuanya berupa susunan SERI BERURUTAN (Chow)": (2, 2, "ALL SEQUENCES", ['Pin1','Pin2','Pin3',' ','Sou4','Sou5','Sou6',' ','Pin5','Pin6','Pin7',' ','Man1','Man2','Man3','+','Ton','Ton']),
-            "🀄 Semuanya berupa 3-KEMBAR (Pong)": (3, 3, "ALL TRIPLETS", ['Pin1','Pin1','Pin1',' ','Sou5','Sou5','Sou5',' ','Chun','Chun','Chun',' ','Man1','Man1','Man1','+','Ton','Ton']),
-            "🧱 Semuanya berupa 4-KEMBAR (Kong)": (15, 25, "ALL QUADRUPLETS", ['Pin1','Pin1','Pin1','Pin1',' ','Sou5','Sou5','Sou5','Sou5',' ','Chun','Chun','Chun','Chun',' ','Man1','Man1','Man1','Man1','+','Ton','Ton']),
-            "🎨 Warnanya MURNI SATU JENIS saja (Tanpa huruf)": (10, 20, "FULL COLOUR", ['Pin1','Pin2','Pin3',' ','Pin1','Pin1','Pin1',' ','Pin5','Pin6','Pin7',' ','Pin9','Pin9','Pin9','+','Pin8','Pin8']),
-            "🖌️ Satu warna dasar, TAPI dicampur tulisan Naga/Angin": (4, 4, "MIXED / SEMI FLUSH", ['Pin1','Pin2','Pin3',' ','Pin1','Pin1','Pin1',' ','Pin5','Pin6','Pin7',' ','Chun','Chun','Chun','+','Ton','Ton']),
-            "👑 Murni hanya keping tulisan NAGA dan ANGIN saja": (10, 20, "ALL HONOURS", ['Ton','Ton','Ton',' ','Nan','Nan','Nan',' ','Chun','Chun','Chun',' ','Haku','Haku','Haku','+','Hatsu','Hatsu']),
-            "🐉 Ada 3 set kembar Naga komplit (Merah, Hijau, Putih)": (10, 20, "3 SCHOLARS (BIG 3 DRAGONS)", ['Chun','Chun','Chun',' ','Hatsu','Hatsu','Hatsu',' ','Haku','Haku','Haku',' ','Pin1','Pin2','Pin3','+','Ton','Ton']),
-            "🐲 Ada 2 set kembar Naga + 1 pasang (Pair) Naga": (5, 5, "SMALL THREE DRAGONS", ['Chun','Chun','Chun',' ','Hatsu','Hatsu','Hatsu',' ','Pin1','Pin2','Pin3',' ','Sou5','Sou5','Sou5','+','Haku','Haku']),
-            "🌬️ Ada 4 set kembar Angin lengkap (T, S, B, U)": (12, 22, "4 BLESSINGS (BIG 4 WINDS)", ['Ton','Ton','Ton',' ','Nan','Nan','Nan',' ','Sha','Sha','Sha',' ','Pei','Pei','Pei','+','Chun','Chun']),
-            "🌪️ Ada 3 set kembar Angin + 1 pasang (Pair) Angin": (10, 20, "SMALL FOUR WINDS", ['Ton','Ton','Ton',' ','Nan','Nan','Nan',' ','Sha','Sha','Sha',' ','Pin1','Pin2','Pin3','+','Pei','Pei']),
-            "👯 Terdiri dari 7 pasang keping yang berbeda (7 Pair)": (10, 20, "SEVEN PAIRS", ['Pin1','Pin1',' ','Sou5','Sou5',' ','Pin5','Pin5',' ','Man1','Man1',' ','Ton','Ton',' ','Chun','Chun',' ','Nan','Nan']),
-            "🛑 HANYA angka 1, angka 9, dan tulisan huruf saja": (3, 3, "MIXED TERMINALS", ['Pin1','Pin1','Pin1',' ','Pin9','Pin9','Pin9',' ','Ton','Ton','Ton',' ','Chun','Chun','Chun','+','Nan','Nan']),
-            "⛔ MURNI hanya angka 1 dan angka 9 (tanpa huruf)": (10, 20, "ALL TERMINALS", ['Pin1','Pin1','Pin1',' ','Pin9','Pin9','Pin9',' ','Sou1','Sou1','Sou1',' ','Sou9','Sou9','Sou9','+','Man1','Man1']),
-            "⛩️ Formasi rahasia 111-2345678-999 satu warna": (12, 22, "NINE GATES", ['Pin1','Pin1','Pin1',' ','Pin2','Pin3','Pin4','Pin5','Pin6','Pin7','Pin8',' ','Pin9','Pin9','Pin9','+','Pin2']),
-            "🌟 Keping ujung beda-beda semua (13 Orphans)": (15, 25, "13 ORPHANS", ['Pin1','Pin9','Sou1','Sou9','Man1','Man9','Ton','Nan','Sha','Pei','Chun','Hatsu','Haku','+','Chun']),
-            "👼 Keping langsung menang dari pembagian awal": (15, 25, "TIANHU / DI HU", ['Teks:✨ MENANG INSTAN DARI BANDAR ✨'])
+            "🔀 Campur aduk (Ada seri, ada kembar, beda warna)": (0, 0, "CHICKEN HAND", "🀙🀚🀛 🀔🀔🀔 🀝🀞🀟 🀇🀈🀉 + 🀀🀀"),
+            "🔢 Semuanya berupa susunan SERI BERURUTAN (Chow)": (2, 2, "ALL SEQUENCES", "🀙🀚🀛 🀔🀕🀖 🀝🀞🀟 🀇🀈🀉 + 🀀🀀"),
+            "🀄 Semuanya berupa 3-KEMBAR (Pong)": (3, 3, "ALL TRIPLETS", "🀙🀙🀙 🀔🀔🀔 🀄🀄🀄 🀇🀇🀇 + 🀀🀀"),
+            "🧱 Semuanya berupa 4-KEMBAR (Kong)": (15, 25, "ALL QUADRUPLETS", "🀙🀙🀙🀙 🀔🀔🀔🀔 🀄🀄🀄🀄 🀇🀇🀇🀇 + 🀀🀀"),
+            "🎨 Warnanya MURNI SATU JENIS saja (Tanpa huruf)": (10, 20, "FULL COLOUR", "🀙🀚🀛 🀙🀙🀙 🀝🀞🀟 🀡🀡🀡 + 🀠🀠"),
+            "🖌️ Satu warna dasar, TAPI dicampur tulisan Naga/Angin": (4, 4, "MIXED / SEMI FLUSH", "🀙🀚🀛 🀙🀙🀙 🀝🀞🀟 🀄🀄🀄 + 🀀🀀"),
+            "👑 Murni hanya keping tulisan NAGA dan ANGIN saja": (10, 20, "ALL HONOURS", "🀀🀀🀀 🀁🀁🀁 🀄🀄🀄 🀆🀆🀆 + 🀅🀅"),
+            "🐉 Ada 3 set kembar Naga komplit (Merah, Hijau, Putih)": (10, 20, "3 SCHOLARS (BIG 3 DRAGONS)", "🀄🀄🀄 🀅🀅🀅 🀆🀆🀆 🀙🀚🀛 + 🀀🀀"),
+            "🐲 Ada 2 set kembar Naga + 1 pasang (Pair) Naga": (5, 5, "SMALL THREE DRAGONS", "🀄🀄🀄 🀅🀅🀅 🀙🀚🀛 🀔🀔🀔 + 🀆🀆"),
+            "🌬️ Ada 4 set kembar Angin lengkap (T, S, B, U)": (12, 22, "4 BLESSINGS (BIG 4 WINDS)", "🀀🀀🀀 🀁🀁🀁 🀂🀂🀂 🀃🀃🀃 + 🀄🀄"),
+            "🌪️ Ada 3 set kembar Angin + 1 pasang (Pair) Angin": (10, 20, "SMALL FOUR WINDS", "🀀🀀🀀 🀁🀁🀁 🀂🀂🀂 🀙🀚🀛 + 🀃🀃"),
+            "👯 Terdiri dari 7 pasang keping yang berbeda (7 Pair)": (10, 20, "SEVEN PAIRS", "🀙🀙 🀔🀔 🀝🀝 🀇🀇 🀀🀀 🀄🀄 🀁🀁"),
+            "🛑 Isinya HANYA angka 1, angka 9, dan tulisan huruf saja": (3, 3, "MIXED TERMINALS", "🀙🀙🀙 🀡🀡🀡 🀀🀀🀀 🀄🀄🀄 + 🀁🀁"),
+            "⛔ Isinya MURNI hanya angka 1 dan angka 9 (tanpa huruf)": (10, 20, "ALL TERMINALS", "🀙🀙🀙 🀡🀡🀡 🀐🀐🀐 🀘🀘🀘 + 🀇🀇"),
+            "⛩️ Formasi rahasia 111-2345678-999 satu warna": (12, 22, "NINE GATES", "🀙🀙🀙 🀚🀛🀜 🀝🀞🀟 🀠 🀡🀡🀡 + 🀚"),
+            "🌟 Keping ujung beda-beda semua (13 Orphans)": (15, 25, "13 ORPHANS", "🀙 🀡 🀐 🀘 🀇 🀏 🀀 🀁 🀂 🀃 🀄 🀅 🀆 + 🀄"),
+            "👼 Keping langsung menang dari pembagian awal": (15, 25, "TIANHU / DI HU", "✨ (Menang Instan dari Bandar) ✨")
         }
 
     def hitung_skor(self, ciri_keping, jumlah_joker, bonus_lain, is_batal):
@@ -69,11 +51,19 @@ class KalkulatorPemulaJ2:
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Kasir Mahjong J2", layout="centered", page_icon="🀄")
 
-# --- SIDEBAR: KAMUS LOKAL ---
+# --- SIDEBAR: KAMUS MENGGUNAKAN TILES.PNG & HONORS.PNG ---
 with st.sidebar:
     st.header("📖 Kamus Contekan")
-    if os.path.exists("Tiles_2.jpg"): st.image("Tiles_2.jpg", use_container_width=True)
-    if os.path.exists("honors_2.jpg"): st.image("honors_2.jpg", use_container_width=True)
+    
+    if os.path.exists("tiles.png"): 
+        st.image("tiles.png", caption="Keping Angka", use_container_width=True)
+    else: 
+        st.warning("⚠️ File 'tiles.png' belum ada di folder.")
+        
+    if os.path.exists("honors.png"): 
+        st.image("honors.png", caption="Keping Tulisan", use_container_width=True)
+    else: 
+        st.warning("⚠️ File 'honors.png' belum ada di folder.")
 
 # --- FASE 1: HALAMAN LOBI (LOGIN & RESET) ---
 if not st.session_state.room:
@@ -94,7 +84,6 @@ if not st.session_state.room:
 
         if reset_btn:
             if input_room:
-                # Membuat/Mereset Room lengkap dengan pencatat kemenangan ("menang": 0)
                 db_room[input_room] = {
                     "Timur": {"nama": None, "saldo": 1000, "menang": 0},
                     "Selatan": {"nama": None, "saldo": 1000, "menang": 0},
@@ -164,22 +153,19 @@ else:
 
     st.divider()
 
-    # --- FITUR BARU: LEADERBOARD KLASEMEN MEJA ---
+    # --- LEADERBOARD KLASEMEN MEJA ---
     st.markdown("### 🏆 Papan Klasemen (Leaderboard)")
     
-    # Kumpulkan data dari dictionary dan urutkan berdasarkan saldo tertinggi
     data_klasemen = []
     for k in ["Timur", "Selatan", "Barat", "Utara"]:
         nama_p = data_room[k]["nama"]
         tampil_nama = f"{nama_p} ({k})" if nama_p else f"Kursi {k} (Kosong)"
         saldo_p = data_room[k]["saldo"]
-        menang_p = data_room[k].get("menang", 0) # Pakai .get jaga-jaga kalau data lama belum punya key ini
+        menang_p = data_room[k].get("menang", 0)
         data_klasemen.append({"nama": tampil_nama, "saldo": saldo_p, "menang": menang_p})
     
-    # Sortir dari cip terbesar ke terkecil
     data_klasemen = sorted(data_klasemen, key=lambda x: x["saldo"], reverse=True)
     
-    # Desain UI Leaderboard
     leaderboard_html = "<div style='background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e0e0e0;'>"
     medali = ["🥇", "🥈", "🥉", "💩"]
     for i, p in enumerate(data_klasemen):
@@ -220,7 +206,7 @@ else:
     ciri_pilihan = st.selectbox("Formasi Pemenang:", list(app.katalog_visual.keys()))
     
     st.markdown("💡 **Preview Bentuk Keping:**")
-    st.markdown(render_formasi(app.katalog_visual[ciri_pilihan][3]), unsafe_allow_html=True)
+    st.markdown(preview_keping(app.katalog_visual[ciri_pilihan][3]), unsafe_allow_html=True)
     
     st.write("")
     col_j, col_b = st.columns(2)
@@ -255,7 +241,6 @@ else:
                 else: data_room[kursi]["saldo"] += 10
             st.rerun()
         else:
-            # FITUR BARU: Tambah statistik jumlah menang si Pemenang
             data_room[pemenang]["menang"] = data_room[pemenang].get("menang", 0) + 1
             
             if cara_menang == "RON (Buangan lawan)":
