@@ -55,15 +55,15 @@ st.set_page_config(page_title="Kasir Mahjong J2", layout="centered", page_icon="
 with st.sidebar:
     st.header("📖 Kamus Contekan")
     
-    if os.path.exists("tiles.png"): 
-        st.image("tiles.png", caption="Keping Angka", use_container_width=True)
+    if os.path.exists("tiles.jpg"): 
+        st.image("tiles.jpg", caption="Keping Angka", use_container_width=True)
     else: 
-        st.warning("⚠️ File 'tiles.png' belum ada di folder.")
+        st.warning("⚠️ File 'tiles.jpg' belum ada di folder.")
         
-    if os.path.exists("honors.png"): 
-        st.image("honors.png", caption="Keping Tulisan", use_container_width=True)
+    if os.path.exists("honors.jpg"): 
+        st.image("honors.jpg", caption="Keping Tulisan", use_container_width=True)
     else: 
-        st.warning("⚠️ File 'honors.png' belum ada di folder.")
+        st.warning("⚠️ File 'honors.jpg' belum ada di folder.")
 
 # --- FASE 1: HALAMAN LOBI (LOGIN & RESET) ---
 if not st.session_state.room:
